@@ -5,42 +5,57 @@ import com.project.project_management.entity.User;
 import com.project.project_management.repository.ClassesRepository;
 import com.project.project_management.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ClassesService {
 
-    @Autowired
-    private ClassesRepository classesRepository;
+    private final ClassesRepository classesRepository;
+    private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
-    @Autowired
-    private UserRepository userRepository;   // 🔥 ADD THIS
+    public ClassesService(ClassesRepository classesRepository,
+                          UserRepository userRepository,
+                          AuditLogService auditLogService) {
+        this.classesRepository = classesRepository;
+        this.userRepository = userRepository;
+        this.auditLogService = auditLogService;
+    }
 
-    @Autowired
-    private AuditLogService auditLogService;
 
     public Classes createClass(Classes classes) {
 
-        // 🔥 check duplicate class code
+        // 🔥 Get logged-in user email from JWT
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        // 🔥 Fetch user from DB
+        User teacher = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 🔥 ROLE CHECK (extra safety)
+        if (!teacher.getRole().equals("TEACHER")) {
+            throw new RuntimeException("Only teachers can create class");
+        }
+
+        // 🔥 assign teacher automatically
+        classes.setTeacher(teacher);
+
+        // duplicate check
         if (classesRepository.findByClassCode(classes.getClassCode()).isPresent()) {
             throw new RuntimeException("Class code already exists!");
         }
 
-        // 🔥 FIX: Fetch full teacher from DB
-        Long teacherId = classes.getTeacher().getUserId();
-
-        User teacher = userRepository.findById(teacherId)
-                .orElseThrow(() -> new RuntimeException("Teacher not found"));
-
-        classes.setTeacher(teacher);   // ✅ IMPORTANT
-
         Classes savedClass = classesRepository.save(classes);
 
-        // 🔥 AUDIT LOG
+        // audit log
         auditLogService.log(
                 "CLASS_CREATED",
                 "Teacher created class " + savedClass.getSubjectName(),
-                savedClass
+                savedClass.getClassId()
         );
 
         return savedClass;
@@ -56,12 +71,15 @@ public class ClassesService {
             throw new RuntimeException("You are not allowed to delete this class");
         }
 
+        String subjectName = classes.getSubjectName();
+
+        classesRepository.delete(classes);
+
         auditLogService.log(
                 "CLASS_DELETED",
-                "Teacher deleted class " + classes.getSubjectName(),
-                classes
+                "Teacher deleted class " + subjectName,
+                classId
         );
-        classesRepository.delete(classes);
     }
 }
 

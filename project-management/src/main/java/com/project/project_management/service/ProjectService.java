@@ -4,6 +4,7 @@ import com.project.project_management.entity.*;
 import com.project.project_management.repository.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,9 @@ public class ProjectService {
     @Autowired
     private AuditLogService auditLogService;
 
+    @Autowired
+    private ClassStudentRepository classStudentRepository;
+
     // ✅ Teacher adds project
     public String addProject(Long classId, String title, String description) {
 
@@ -48,7 +52,7 @@ public class ProjectService {
         auditLogService.log(
                 "PROJECT_ADDED",
                 "Teacher added project '" + savedProject.getTitle() + "'",
-                savedProject.getClasses()
+                savedProject.getClasses().getClassId()
         );
         return "Project added successfully";
     }
@@ -76,59 +80,102 @@ public class ProjectService {
         auditLogService.log(
                 "PROJECT_DELETED",
                 "Teacher deleted project '" + project.getTitle() + "'",
-                project.getClasses()
+                project.getClasses().getClassId()
         );
         return "Project deleted successfully";
     }
 
     // 🔥🔥 CORE FEATURE: PROJECT SELECTION (TRANSACTION)
     @Transactional
-    public String selectProject(Long projectId, List<Long> studentIds) {
+    public String selectProject(Long projectId, List<Long> memberIds) {
 
-        // 🔥 ADD HERE
-        System.out.println("Selecting project: " + projectId);
+        // 🔐 1. Logged-in user
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!currentUser.getRole().equals("STUDENT")) {
+            throw new RuntimeException("Only students can select project");
+        }
+
+        // 🔍 2. Get project
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
 
-        // ❗ Check if project already taken
         if (!project.getStatus().equals("AVAILABLE")) {
             throw new RuntimeException("Project already taken");
         }
 
-        // 1️⃣ Create Team
+        // 🔥 3. CHECK: current user must be in class
+        if (!classStudentRepository.existsByClassesAndStudent(project.getClasses(), currentUser)) {
+            throw new RuntimeException("You are not part of this class");
+        }
+
+        // ❗ Prevent user already in team
+        if (teamMemberRepository.existsByStudent(currentUser)) {
+            throw new RuntimeException("You are already in a team");
+        }
+
+        // 🔥 4. Create team
         Team team = new Team();
         team.setProject(project);
-        team.setTeamName("Team-" + projectId); // optional naming
+        team.setTeamName("Team-" + projectId);
         teamRepository.save(team);
 
-        // 2️⃣ Add Members
-        for (Long studentId : studentIds) {
+        int teamSize = 1; // current user already added
 
-            User student = userRepository.findById(studentId)
+        // 🔥 5. ADD CURRENT USER
+        TeamMember self = new TeamMember();
+        self.setTeam(team);
+        self.setStudent(currentUser);
+        teamMemberRepository.save(self);
+
+        // 🔥 6. Add other members
+        for (Long id : memberIds) {
+
+            // ❗ skip self
+            if (id.equals(currentUser.getUserId())) continue;
+
+            User student = userRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Student not found"));
 
-            // ❗ Prevent student joining multiple teams
+            if (!student.getRole().equals("STUDENT")) {
+                throw new RuntimeException("Only students allowed");
+            }
+
+            // 🔥 CLASS VALIDATION
+            if (!classStudentRepository.existsByClassesAndStudent(project.getClasses(), student)) {
+                throw new RuntimeException("Student " + student.getName() + " is not in this class");
+            }
+
+            // ❗ Already in another team
             if (teamMemberRepository.existsByStudent(student)) {
                 throw new RuntimeException("Student already in another team");
+            }
+
+            // 🔥 TEAM SIZE CHECK (optional but recommended)
+            if (teamSize >= team.getMaxSize()) {
+                throw new RuntimeException("Team is full (max " + team.getMaxSize() + ")");
             }
 
             TeamMember member = new TeamMember();
             member.setTeam(team);
             member.setStudent(student);
-
             teamMemberRepository.save(member);
+
+            teamSize++;
         }
 
-        // 3️⃣ Update Project Status
+        // 🔥 7. Update project
         project.setStatus("TAKEN");
         projectRepository.save(project);
 
-        // 🔥 ✅ ADD AUDIT LOG HERE (CORRECT PLACE)
+        // 🔥 8. Audit log (CLASS ID ✔)
         auditLogService.log(
-                "TEAM_SELECTED_PROJECT",
-                "Team '" + team.getTeamName() + "' selected project '" + project.getTitle() + "'",
-                project.getClasses()
+                "PROJECT_SELECTED",
+                currentUser.getName() + " created team for project '" + project.getTitle() + "'",
+                project.getClasses().getClassId()
         );
 
         return "Project selected successfully";
@@ -137,32 +184,52 @@ public class ProjectService {
     @Transactional
     public String leaveProject(Long teamId) {
 
+        // 🔐 1. Get logged-in user
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // ❗ Role check
+        if (!currentUser.getRole().equals("STUDENT")) {
+            throw new RuntimeException("Only students can leave project");
+        }
+
+        // 🔍 2. Get team
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new RuntimeException("Team not found"));
 
         Project project = team.getProject();
 
-        // delete members
+        // ❗ 3. Check if user is part of this team
+        TeamMember member = teamMemberRepository
+                .findByTeamAndStudent(team, currentUser);
+
+        if (member == null) {
+            throw new RuntimeException("You are not part of this team");
+        }
+
+        // 🔥 4. Delete all members
         teamMemberRepository.deleteByTeam(team);
 
-        // delete team
+        // 🔥 5. Delete team
         teamRepository.delete(team);
 
-        // update project
+        // 🔥 6. Make project available again
         project.setStatus("AVAILABLE");
         projectRepository.save(project);
 
-        // audit log
+        // 🔥 7. Audit log (ONLY ONE LOG IS ENOUGH)
         auditLogService.log(
                 "TEAM_LEFT_PROJECT",
-                "Team '" + team.getTeamName() + "' left project '" + project.getTitle() + "'",
-                project.getClasses()
+                currentUser.getName() + " left team '" + team.getTeamName() +
+                        "' for project '" + project.getTitle() + "'",
+                project.getClasses().getClassId()
         );
-        auditLogService.log(
-                "TEAM_LEFT_PROJECT",
-                "Team '" + team.getTeamName() + "' left project '" + project.getTitle() + "'. Project is now available for others",
-                project.getClasses()
-        );
+
         return "Team removed and project is now available";
     }
 }

@@ -18,8 +18,8 @@ public class UserController {
         return userService.signup(user);
     }
 
-    @PostMapping("/login")
-    public User login(@RequestBody LoginRequest request) {
-        return userService.login(request.getEmail(), request.getPassword());
-    }
+//    @PostMapping("/login")
+//    public User login(@RequestBody LoginRequest request) {
+//        return userService.login(request.getEmail(), request.getPassword());
+//    }
 }

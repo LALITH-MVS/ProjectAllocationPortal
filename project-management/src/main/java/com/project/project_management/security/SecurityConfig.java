@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.bind.annotation.GetMapping;
 
 @Configuration
 @EnableMethodSecurity
@@ -40,20 +41,48 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable()) // disable CSRF
+                .csrf(csrf -> csrf.disable())
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login").permitAll() // allow login
-                        .anyRequest().authenticated() // secure all APIs
+
+                        // 🔓 PUBLIC APIs
+                        .requestMatchers("/auth/**", "/api/users/signup").permitAll()
+
+                        // 👨‍🏫 TEACHER ONLY
+                        .requestMatchers("/api/classes/**").hasRole("TEACHER")
+                        .requestMatchers("/api/ideas/approve/**").hasRole("TEACHER")
+                        .requestMatchers("/audit/**").hasRole("TEACHER")
+                        .requestMatchers("/project/add").hasRole("TEACHER")
+                        .requestMatchers("/project/delete/**").hasRole("TEACHER")
+                        .requestMatchers("/api/ideas/approve/**").hasRole("TEACHER")
+                        .requestMatchers("/ideas/update-status").hasRole("TEACHER")
+
+                        .requestMatchers("/ideas/class/**").hasRole("TEACHER")
+
+                        // 🎓 STUDENT ONLY
+                        .requestMatchers("/api/ideas/submit/**").hasRole("STUDENT")
+                        .requestMatchers("/student/**").hasRole("STUDENT")
+                        .requestMatchers("/ideas/submit").hasRole("STUDENT")
+                        // 👥 COMMON (logged-in users)
+                        .requestMatchers("/api/team/**").authenticated()
+                        .requestMatchers("/project/select/**").hasRole("STUDENT")
+                        .requestMatchers("/api/projects/**").authenticated()
+
+                        // 🔒 EVERYTHING ELSE
+                        .anyRequest().authenticated()
                 )
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );
 
-        // 🔥 Add JWT Filter
+        // 🔥 JWT FILTER
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
+
 }
 
 

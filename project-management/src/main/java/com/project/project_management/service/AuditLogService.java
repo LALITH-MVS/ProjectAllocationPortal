@@ -19,13 +19,13 @@ public class AuditLogService {
     }
 
     // 🔥 CREATE LOG
-    public void log(String action, String description, Classes cls) {
+    public void log(String action, String description, Long classId) {
 
         AuditLog log = new AuditLog();
         log.setAction(action);
         log.setDescription(description);
         log.setTimestamp(LocalDateTime.now());
-        log.setClasses(cls);
+        log.setClassId(classId);   // ✅ FIXED
 
         auditLogRepository.save(log);
     }
@@ -34,8 +34,7 @@ public class AuditLogService {
     public List<AuditLogDTO> getLogsByClass(Long classId) {
 
         List<AuditLog> logs =
-                auditLogRepository.findByClasses_ClassIdOrderByTimestampDesc(classId);
-
+                auditLogRepository.findByClassIdOrderByTimestampDesc(classId);
         return logs.stream()
                 .map(log -> new AuditLogDTO(
                         log.getAction(),

@@ -7,6 +7,6 @@ import java.util.List;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
-    List<AuditLog> findByClasses_ClassId(Long classId);
-    List<AuditLog> findByClasses_ClassIdOrderByTimestampDesc(Long classId);
+    List<AuditLog> findByClassId(Long classId);
+    List<AuditLog> findByClassIdOrderByTimestampDesc(Long classId);
 }

@@ -44,4 +44,9 @@ public class ProjectController {
         return projectService.selectProject(projectId, studentIds);
     }
 
+    @DeleteMapping("/leave")
+    public String leaveProject(@RequestParam Long teamId) {
+        return projectService.leaveProject(teamId);
+    }
+
 }

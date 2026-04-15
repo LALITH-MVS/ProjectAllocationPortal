@@ -17,7 +17,5 @@ public class AuditLog {
     private String description;
     private LocalDateTime timestamp;
 
-    @ManyToOne
-    @JoinColumn(name = "class_id")
-    private Classes classes;
+    private Long classId;   // ✅ FIXED
 }
