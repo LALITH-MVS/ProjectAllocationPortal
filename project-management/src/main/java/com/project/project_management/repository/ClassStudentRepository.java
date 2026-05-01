@@ -14,4 +14,7 @@ public interface ClassStudentRepository extends JpaRepository<ClassStudent, Long
     void deleteByClassesAndStudent(Classes classes, User student);
 
     List<ClassStudent> findByClasses_ClassId(Long classId);
+
+    // 🔥 ADD THIS
+    List<ClassStudent> findByStudent(User student);
 }

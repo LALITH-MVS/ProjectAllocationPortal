@@ -32,3 +32,4 @@ public class ClassStudentController {
         return classStudentService.getStudentsByClass(classId);
     }
 }
+

@@ -13,11 +13,11 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    // 🔐 FIXED SECRET KEY (must be at least 32 characters)
+    // 🔐 Secret key (at least 32 characters)
     private final String SECRET = "mysecretkeymysecretkeymysecretkey12345";
 
-    // ⏱ Token validity (1 hour)
-    private final long EXPIRATION_TIME = 1000 * 60 * 60;
+    // ⏱ Token validity — 24 hours (was 1 hour, too short for dev)
+    private final long EXPIRATION_TIME = 1000 * 60 * 60 * 24;
 
     // 🔹 Get signing key
     private Key getSigningKey() {
@@ -26,9 +26,19 @@ public class JwtUtil {
 
     // 🔹 Generate Token
     public String generateToken(UserDetails userDetails) {
+
+        // ✅ FIX: Extract clean role string instead of List.toString()
+        // Before: userDetails.getAuthorities().toString() → "[ROLE_STUDENT]" (with brackets)
+        // After:  "ROLE_STUDENT" (clean)
+        String role = userDetails.getAuthorities()
+                .stream()
+                .findFirst()
+                .map(a -> a.getAuthority())
+                .orElse("ROLE_STUDENT");
+
         return Jwts.builder()
-                .setSubject(userDetails.getUsername()) // email
-                .claim("role", userDetails.getAuthorities().toString())
+                .setSubject(userDetails.getUsername())    // email
+                .claim("role", role)                      // ✅ clean role: "ROLE_STUDENT"
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

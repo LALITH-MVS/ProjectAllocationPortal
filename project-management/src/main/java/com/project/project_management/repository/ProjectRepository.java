@@ -9,5 +9,5 @@ import java.util.List;
 public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     List<Project> findByClasses(Classes classes);
-
+    List<Project> findByClasses_ClassIdAndStatus(Long classId, String status);
 }

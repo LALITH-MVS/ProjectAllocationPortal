@@ -19,4 +19,6 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 
     TeamMember findByTeamAndStudent(Team team, User student); // 🔥 needed
     void deleteByTeam(Team team);
+
+    List<TeamMember> findByStudent(User student);
 }

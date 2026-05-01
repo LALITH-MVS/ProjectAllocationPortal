@@ -1,5 +1,8 @@
 package com.project.project_management.controller;
 
+import com.project.project_management.dto.AvailableProjectDTO;
+import com.project.project_management.dto.ProjectSelectDTO;
+import com.project.project_management.dto.SelectedProjectDTO;
 import com.project.project_management.entity.Project;
 import com.project.project_management.service.ProjectService;
 
@@ -38,15 +41,25 @@ public class ProjectController {
     }
 
     @PostMapping("/select")
-    public String selectProject(@RequestParam Long projectId,
-                                @RequestBody List<Long> studentIds) {
-
-        return projectService.selectProject(projectId, studentIds);
+    public String selectProject(@RequestBody ProjectSelectDTO dto) {
+        return projectService.selectProject(dto.getProjectId(), dto.getStudentIds());
     }
 
     @DeleteMapping("/leave")
     public String leaveProject(@RequestParam Long teamId) {
         return projectService.leaveProject(teamId);
+    }
+
+    // 🔥 NEW: SELECTED PROJECTS (FOR UI)
+    @GetMapping("/selected/{classId}")
+    public List<SelectedProjectDTO> getSelectedProjects(@PathVariable Long classId) {
+        return projectService.getSelectedProjects(classId);
+    }
+
+    // 🔥 NEW: AVAILABLE PROJECTS (FOR UI)
+    @GetMapping("/available/{classId}")
+    public List<AvailableProjectDTO> getAvailableProjects(@PathVariable Long classId) {
+        return projectService.getAvailableProjects(classId);
     }
 
 }

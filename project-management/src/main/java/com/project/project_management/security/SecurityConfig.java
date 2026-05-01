@@ -41,7 +41,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable())
+                .cors(cors -> {})   // ✅ FIXED
+                .csrf(csrf -> csrf.disable())   // ✅ FIXED
 
                 .authorizeHttpRequests(auth -> auth
 
@@ -63,11 +64,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/ideas/submit/**").hasRole("STUDENT")
                         .requestMatchers("/student/**").hasRole("STUDENT")
                         .requestMatchers("/ideas/submit").hasRole("STUDENT")
+                        .requestMatchers("/available/**").hasRole("STUDENT")
+                        .requestMatchers("/selected/**").hasRole("STUDENT")
+                        .requestMatchers("/project/select").hasRole("STUDENT")
                         // 👥 COMMON (logged-in users)
                         .requestMatchers("/api/team/**").authenticated()
                         .requestMatchers("/project/select/**").hasRole("STUDENT")
                         .requestMatchers("/api/projects/**").authenticated()
-
+                        .requestMatchers("/student/**").hasRole("STUDENT")
                         // 🔒 EVERYTHING ELSE
                         .anyRequest().authenticated()
                 )

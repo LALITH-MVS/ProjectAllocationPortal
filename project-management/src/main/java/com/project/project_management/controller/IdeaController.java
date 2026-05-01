@@ -1,5 +1,6 @@
 package com.project.project_management.controller;
 
+import com.project.project_management.dto.IdeaSubmitDTO;
 import com.project.project_management.entity.Idea;
 import com.project.project_management.service.IdeaService;
 import org.springframework.web.bind.annotation.*;
@@ -18,13 +19,16 @@ public class IdeaController {
 
     // 🔥 SUBMIT IDEA
     @PostMapping("/submit")
-    public Idea submitIdea(@RequestParam Long classId,
-                           @RequestParam String title,
-                           @RequestParam String description,
-                           @RequestParam List<Long> studentIds) {
+    public Idea submitIdea(@RequestBody IdeaSubmitDTO dto) {
 
-        return ideaService.submitIdea(classId, title, description, studentIds);
+        return ideaService.submitIdea(
+                dto.getClassId(),
+                dto.getTitle(),
+                dto.getDescription(),
+                dto.getStudentIds()
+        );
     }
+
 
     // 🔥 GET IDEAS
     @GetMapping("/class/{classId}")
@@ -58,3 +62,4 @@ public class IdeaController {
         }
     }
 }
+

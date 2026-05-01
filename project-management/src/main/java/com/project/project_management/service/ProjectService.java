@@ -1,5 +1,7 @@
 package com.project.project_management.service;
 
+import com.project.project_management.dto.AvailableProjectDTO;
+import com.project.project_management.dto.SelectedProjectDTO;
 import com.project.project_management.entity.*;
 import com.project.project_management.repository.*;
 
@@ -8,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -134,6 +137,7 @@ public class ProjectService {
         // 🔥 6. Add other members
         for (Long id : memberIds) {
 
+            if (id == null) continue;   // ✅ SKIP EMPTY INPUTS
             // ❗ skip self
             if (id.equals(currentUser.getUserId())) continue;
 
@@ -232,4 +236,54 @@ public class ProjectService {
 
         return "Team removed and project is now available";
     }
+
+
+    //for frontend purpose
+    public List<SelectedProjectDTO> getSelectedProjects(Long classId) {
+
+        List<Project> projects = projectRepository.findByClasses_ClassIdAndStatus(classId, "TAKEN");
+
+        List<SelectedProjectDTO> result = new ArrayList<>();
+
+        for (Project project : projects) {
+
+            Team team = teamRepository.findByProject(project);
+
+            if (team == null) continue;
+
+            List<TeamMember> members = teamMemberRepository.findByTeamId(team.getId());
+
+            List<String> names = new ArrayList<>();
+
+            for (TeamMember tm : members) {
+                if (tm.getStudent() != null) {
+                    names.add(tm.getStudent().getName());
+                }
+            }
+
+            result.add(new SelectedProjectDTO(project.getTitle(), names));
+        }
+
+        return result;
+    }
+
+
+    //for frontend purpose
+    public List<AvailableProjectDTO> getAvailableProjects(Long classId) {
+
+        List<Project> projects = projectRepository.findByClasses_ClassIdAndStatus(classId, "AVAILABLE");
+
+        List<AvailableProjectDTO> result = new ArrayList<>();
+
+        for (Project p : projects) {
+            result.add(new AvailableProjectDTO(
+                    p.getProjectId(),
+                    p.getTitle(),
+                    p.getDescription()
+            ));
+        }
+
+        return result;
+    }
 }
+

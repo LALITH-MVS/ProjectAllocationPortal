@@ -32,7 +32,6 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // 🔥 SKIP LOGIN & SIGNUP
         if (request.getServletPath().equals("/auth/login") ||
                 request.getServletPath().equals("/api/users/signup")) {
             filterChain.doFilter(request, response);
@@ -52,6 +51,10 @@ public class JwtFilter extends OncePerRequestFilter {
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+            // ✅ DEBUG — check Spring Boot console for these lines
+            System.out.println("DEBUG AUTHORITIES: " + userDetails.getAuthorities());
+            System.out.println("DEBUG USERNAME: " + userDetails.getUsername());
 
             if (jwtUtil.validateToken(token, userDetails.getUsername())) {
 
@@ -73,6 +76,3 @@ public class JwtFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-
-
-
